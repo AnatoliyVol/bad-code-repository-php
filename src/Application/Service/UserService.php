@@ -10,6 +10,7 @@ use App\Infrastructure\Repository\UserRepository;
 use App\Infrastructure\Security\PasswordHasher;
 use App\Support\Exceptions\NotFoundException;
 use App\Support\Exceptions\ValidationException;
+use App\Support\Validation\ValidateUserService;
 use DateTimeImmutable;
 
 class UserService
@@ -17,7 +18,8 @@ class UserService
     public function __construct(
         private UserRepository $users,
         private DeliveryRepository $deliveries,
-        private PasswordHasher $hasher
+        private PasswordHasher $hasher,
+        private ValidateUserService $validateUserService,
     ) {
     }
 
@@ -33,37 +35,13 @@ class UserService
 
     public function create(array $payload): array
     {
-        $errors = [];
-        $login = trim((string) ($payload['login'] ?? ''));
-        $name = trim((string) ($payload['name'] ?? ''));
-        $password = (string) ($payload['password'] ?? '');
-        $role = (string) ($payload['role'] ?? '');
-
-        if ($login === '') {
-            $errors['login'] = 'Логин обязателен';
-        }
-        if ($name === '') {
-            $errors['name'] = 'Имя обязательно';
-        }
-        if ($password === '') {
-            $errors['password'] = 'Пароль обязателен';
-        }
-        if ($role === '' || !UserRole::isValid($role)) {
-            $errors['role'] = 'Некорректная роль';
-        }
-        if ($errors) {
-            throw new ValidationException($errors);
-        }
-
-        if ($this->users->findByLogin($login)) {
-            throw new ValidationException(['login' => 'Логин уже используется']);
-        }
+        $this->validateUserService->createUserValidation($payload);
 
         $user = $this->users->create([
-            'login' => $login,
-            'password_hash' => $this->hasher->hash($password),
-            'name' => $name,
-            'role' => $role,
+            'login' => $payload['login'],
+            'password_hash' => $this->hasher->hash($payload['password']),
+            'name' => $payload['name'],
+            'role' => $payload['role'],
             'created_at' => (new DateTimeImmutable())->format(DATE_ATOM),
         ]);
 
@@ -72,59 +50,12 @@ class UserService
 
     public function update(int $id, array $payload): array
     {
-        $user = $this->users->findById($id);
-        if (!$user) {
-            throw new NotFoundException('User not found');
-        }
+        $this->validateUserService->updateUserValidation($id, $payload);
 
-        $data = [];
-        $errors = [];
-
-        if (array_key_exists('login', $payload)) {
-            $login = trim((string) $payload['login']);
-            if ($login === '') {
-                $errors['login'] = 'Логин не может быть пустым';
-            } elseif ($login !== $user['login'] && $this->users->findByLogin($login)) {
-                $errors['login'] = 'Логин уже используется';
-            } else {
-                $data['login'] = $login;
-            }
-        }
-
-        if (array_key_exists('name', $payload)) {
-            $name = trim((string) $payload['name']);
-            if ($name === '') {
-                $errors['name'] = 'Имя не может быть пустым';
-            } else {
-                $data['name'] = $name;
-            }
-        }
-
-        if (array_key_exists('role', $payload)) {
-            $role = (string) $payload['role'];
-            if (!UserRole::isValid($role)) {
-                $errors['role'] = 'Некорректная роль';
-            } else {
-                $data['role'] = $role;
-            }
-        }
-
-        if (array_key_exists('password', $payload)) {
-            $password = (string) $payload['password'];
-            if ($password === '') {
-                $errors['password'] = 'Пароль не может быть пустым';
-            } else {
-                $data['password_hash'] = $this->hasher->hash($password);
-            }
-        }
-
-        if ($errors) {
-            throw new ValidationException($errors);
-        }
-
-        if ($data === []) {
-            return $this->transform($user);
-        }
+        $data['login'] = $payload['login'];
+        $data['name'] = $payload['name'];
+        $data['password_hash'] = $this->hasher->hash($payload['password']);
+        $data['role'] = $payload['role'];
 
         $updated = $this->users->update($id, $data);
         return $this->transform($updated);
