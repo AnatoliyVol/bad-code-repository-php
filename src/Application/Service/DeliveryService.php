@@ -18,7 +18,6 @@ use DateInterval;
 use DateTimeImmutable;
 use PDO;
 use Throwable;
-
 class DeliveryService
 {
     private array $productCache = [];
