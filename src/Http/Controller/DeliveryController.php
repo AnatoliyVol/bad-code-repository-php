@@ -5,14 +5,21 @@ declare(strict_types=1);
 namespace App\Http\Controller;
 
 use App\Application\Service\DeliveryService;
-use App\Support\Exceptions\ValidationException;
+use App\Support\Validate;
 use App\Support\Request;
 use App\Support\Response;
 
 class DeliveryController
 {
-    public function __construct(private DeliveryService $deliveries)
+    public function __construct(
+        private DeliveryService $deliveries, 
+        private Validate $validator)
     {
+    }
+
+    private function validateDeliveryId(array $params): int
+    {
+        return $this->validator->validate_id($params, 'Доставка');
     }
 
     public function index(Request $request, array $params = []): Response
@@ -28,10 +35,7 @@ class DeliveryController
 
     public function show(Request $request, array $params = []): Response
     {
-        $id = isset($params['id']) ? (int) $params['id'] : 0;
-        if ($id <= 0) {
-            throw new ValidationException(['id' => 'Некорректный ID доставки']);
-        }
+        $id = $this->validateDeliveryId($params);
         $delivery = $this->deliveries->get($id);
         return Response::json(['data' => $delivery]);
     }
@@ -45,20 +49,14 @@ class DeliveryController
 
     public function update(Request $request, array $params = []): Response
     {
-        $id = isset($params['id']) ? (int) $params['id'] : 0;
-        if ($id <= 0) {
-            throw new ValidationException(['id' => 'Некорректный ID доставки']);
-        }
+        $id = $this->validateDeliveryId($params);
         $delivery = $this->deliveries->update($id, $request->body());
         return Response::json(['data' => $delivery]);
     }
 
     public function destroy(Request $request, array $params = []): Response
     {
-        $id = isset($params['id']) ? (int) $params['id'] : 0;
-        if ($id <= 0) {
-            throw new ValidationException(['id' => 'Некорректный ID доставки']);
-        }
+        $id = $this->validateDeliveryId($params);
         $this->deliveries->delete($id);
         return Response::json([], 204);
     }

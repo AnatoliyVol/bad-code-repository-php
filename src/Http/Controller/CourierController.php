@@ -5,14 +5,18 @@ declare(strict_types=1);
 namespace App\Http\Controller;
 
 use App\Application\Service\CourierService;
-use App\Support\Exceptions\ValidationException;
+use App\Support\Validate;
 use App\Support\Request;
 use App\Support\Response;
 
 class CourierController
 {
-    public function __construct(private CourierService $couriers)
+    public function __construct(private CourierService $couriers, private Validate $validator)
     {
+    }
+
+    private function validateCourierId($params) {
+        return $this->validator->validate_id($params, 'Доставка');
     }
 
     public function index(Request $request, array $params = []): Response
@@ -31,10 +35,7 @@ class CourierController
     public function show(Request $request, array $params = []): Response
     {
         $user = $request->user() ?? [];
-        $id = isset($params['id']) ? (int) $params['id'] : 0;
-        if ($id <= 0) {
-            throw new ValidationException(['id' => 'Некорректный ID доставки']);
-        }
+        $id = $this->validateCourierId($params);
         $delivery = $this->couriers->getCourierDelivery($id, $user);
         return Response::json(['data' => $delivery]);
     }
