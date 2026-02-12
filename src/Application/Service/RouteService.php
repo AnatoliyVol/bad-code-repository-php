@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Application\Service;
 
+use App\Constants\Route as RouteConstants;
 use App\Support\Exceptions\ValidationException;
 use DateTimeImmutable;
 
@@ -22,10 +23,10 @@ class RouteService
         }
 
         $averageSpeed = 30.0;
-        $durationMinutes = (int) round(($distance / $averageSpeed) * 60);
-        $durationMinutes = max($durationMinutes, 5);
+        $durationMinutes = (int) round(($distance / $averageSpeed) * RouteConstants::MINUTES_IN_ONE_HOUR);
+        $durationMinutes = max($durationMinutes, RouteConstants::MINIMUM_FOR_DURATION_MINUTES);
 
-        $bufferMinutes = (int) round($durationMinutes * 0.3);
+        $bufferMinutes = (int) round($durationMinutes * RouteConstants::PART_OF_DURATION_MINUTES_FOR_BUFFER);
         $totalMinutes = $durationMinutes + $bufferMinutes;
 
         $start = (new DateTimeImmutable('09:00'))->format('H:i');
